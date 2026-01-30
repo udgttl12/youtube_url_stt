@@ -50,7 +50,7 @@ class SpeakerDiarizer:
 
             self._pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
-                use_auth_token=self._hf_token if self._hf_token else None,
+                token=self._hf_token if self._hf_token else None,
             )
 
             # 디바이스 설정
