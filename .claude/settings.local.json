@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config:*)",
+      "Bash(python -c:*)",
+      "Bash(hooks\" || echo \"No matching files in C:Users윤동규.claude\"\")",
+      "Skill(claude-notifications-go:notifications-init)"
+    ]
+  }
+}

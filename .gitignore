@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Project specific
+resources/ffmpeg/*.exe
+output/
+*.wav
+*.mp3
+*.mp4
+*.webm
+*.m4a
+temp/
+tmp/
+
+# Model cache
+models/
+
+# PyInstaller
+*.spec.bak
+
+# Environment
+.env
+*.log
