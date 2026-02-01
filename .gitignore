@@ -27,7 +27,7 @@ Thumbs.db
 resources/ffmpeg/*.exe
 resources/pyannote/*.bin
 resources/pyannote/plda/
-output/
+/output/
 *.wav
 *.mp3
 *.mp4

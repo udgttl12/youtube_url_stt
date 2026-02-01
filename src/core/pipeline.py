@@ -15,7 +15,7 @@ from src.core.merger import ResultMerger, MergedResult
 from src.utils.device import DeviceManager, DeviceConfig
 from src.utils.config import AppConfig
 from src.utils.exceptions import YouTubeSTTError, DiarizeError
-from src.utils.paths import cleanup_temp
+from src.utils.paths import cleanup_temp, get_pyannote_config_path
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,12 @@ class Pipeline:
 
             # 4. 화자 분리 (선택적)
             diarize_result: Optional[DiarizeResult] = None
-            if self._config.enable_diarization and self._config.hf_token:
+            local_model = get_pyannote_config_path()
+            has_local_model = local_model is not None and local_model.exists()
+            can_diarize = self._config.enable_diarization and (
+                self._config.hf_token or has_local_model
+            )
+            if can_diarize:
                 try:
                     self._notify(PipelineStage.DIARIZE, 0.0, "화자 분리 시작...")
                     diarizer = SpeakerDiarizer(
@@ -127,15 +132,14 @@ class Pipeline:
                         PipelineStage.DIARIZE, 1.0,
                         "화자 분리 실패 - 단일 화자로 처리"
                     )
+            elif self._config.enable_diarization:
+                logger.info("HuggingFace 토큰 없고 로컬 모델도 없음, 화자 분리 건너뜀")
+                self._notify(
+                    PipelineStage.DIARIZE, 1.0,
+                    "HF 토큰/로컬 모델 없음 - 화자 분리 건너뜀"
+                )
             else:
-                if not self._config.hf_token and self._config.enable_diarization:
-                    logger.info("HuggingFace 토큰 없음, 화자 분리 건너뜀")
-                    self._notify(
-                        PipelineStage.DIARIZE, 1.0,
-                        "HF 토큰 없음 - 화자 분리 건너뜀"
-                    )
-                else:
-                    self._notify(PipelineStage.DIARIZE, 1.0, "화자 분리 건너뜀")
+                self._notify(PipelineStage.DIARIZE, 1.0, "화자 분리 건너뜀")
 
             self._check_cancelled()
 

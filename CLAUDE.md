@@ -15,10 +15,16 @@ python main.py
 # CLI 모드
 python main.py --cli --url <YOUTUBE_URL> [--language ko] [--speakers 2] [--format txt] [--output result.txt] [--cpu] [--verbose]
 
+# 의존성 사전 다운로드 (ffmpeg, Whisper, diarization 모델)
+python main.py --setup [--hf-token TOKEN]
+
 # 의존성 설치
 pip install -r requirements.txt
 
-# PyInstaller 빌드 (exe 패키징)
+# GPU 사용 시 CUDA PyTorch 별도 설치 필요
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# PyInstaller 빌드 (exe 패키징) → dist/YouTubeSTT/
 pyinstaller build.spec
 ```
 
@@ -32,16 +38,18 @@ pyinstaller build.spec
 YouTubeDownloader → AudioPreprocessor → SpeakerDiarizer → Transcriber → ResultMerger → Formatter
 ```
 
-1. **downloader.py** - yt-dlp로 오디오 추출 (WAV), 3회 재시도
-2. **preprocessor.py** - 16kHz mono 변환, RMS 정규화, 클리핑 방지
-3. **diarizer.py** - pyannote.audio 3.1 화자 분리 (HuggingFace 토큰 필요)
-4. **transcriber.py** - faster-whisper (large-v3/medium), 단어 단위 타임스탬프
-5. **merger.py** - 단어 중간점(midpoint) 기반으로 화자-텍스트 매핑
-6. **formatter.py** + txt/srt/json_writer.py - 출력 포맷 생성
+1. **downloader.py** - yt-dlp로 오디오 추출 (WAV), 3회 재시도, URL 정규식 검증
+2. **preprocessor.py** - 16kHz mono 변환, RMS 정규화(-20dB), 클리핑 방지(0.99 임계값)
+3. **diarizer.py** - pyannote.audio 3.1 화자 분리. 모델 로딩 순서: ① `resources/pyannote/` 로컬 번들 → ② HuggingFace Hub 폴백
+4. **transcriber.py** - faster-whisper (large-v3), 단어 단위 타임스탬프. `transcribe_full()`과 `transcribe_with_vad()` 두 모드
+5. **merger.py** - 각 단어의 midpoint 시간을 화자 구간에 매핑하여 귀속
+6. **src/output/** - 출력 포맷터 모듈 (txt/srt/json). main.py에서 `from src.output.formatter import get_formatter`로 참조
 
 ### GUI
 
-customtkinter 기반. `src/gui/app.py`가 메인 윈도우이며 `src/gui/components/`에 URL 입력, 옵션 패널, 진행바, 로그 뷰어, 결과 미리보기 컴포넌트. Pipeline은 별도 스레드에서 실행.
+customtkinter 기반 다크 모드. `src/gui/app.py`가 메인 윈도우, `src/gui/components/`에 URL 입력/옵션 패널/진행바/로그 뷰어/결과 미리보기. Pipeline은 별도 스레드에서 실행. 폰트 설정은 `src/gui/fonts.py`에서 중앙 관리 (맑은 고딕/Consolas).
+
+`src/gui/setup_wizard.py`는 의존성 관리 다이얼로그로 ffmpeg/Whisper/Diarizer 모델의 다운로드·삭제·용량 표시를 탭 기반 UI로 제공.
 
 ### 디바이스 관리
 
@@ -49,23 +57,42 @@ customtkinter 기반. `src/gui/app.py`가 메인 윈도우이며 `src/gui/compon
 - GPU: cuda, float16, large-v3 모델
 - CPU: cpu, int8, large-v3 모델
 
+### 경로 탐색 규칙
+
+**ffmpeg** (src/utils/paths.py `get_ffmpeg_path()`):
+1. `resources/ffmpeg/ffmpeg.exe` (PyInstaller 번들)
+2. `~/.youtube_stt/ffmpeg/ffmpeg.exe` (사용자 다운로드)
+3. 시스템 PATH
+
+**pyannote 모델** (src/utils/paths.py `get_pyannote_config_path()`):
+- `resources/pyannote/`에 `.bin` 모델 파일이 있으면 `config.yaml`과 PLDA 더미 파일을 자동 생성
+- 로컬 모델 로딩 시 `os.chdir()`로 CWD를 변경하여 config.yaml 내 상대경로 해석 (diarizer.py:62)
+
+**HF 토큰 해석 우선순위** (AppConfig.resolve_hf_token):
+1. CLI 인자 (`--hf-token`)
+2. 환경변수 (`HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN`)
+3. 저장된 설정 (`~/.youtube_stt/config.json`)
+
 ### 설정/경로
 
 - 설정 파일: `~/.youtube_stt/config.json` (AppConfig, src/utils/config.py)
 - 모델 캐시: `~/.youtube_stt/models/`
-- 임시 파일: `~/.youtube_stt/temp/`
+- 임시 파일: `~/.youtube_stt/temp/` (Pipeline 완료 후 자동 정리)
 - 출력 디렉토리: `~/.youtube_stt/output/`
-- ffmpeg: `resources/ffmpeg/` 또는 시스템 PATH
+- PyInstaller 번들 시 `sys._MEIPASS`가 base dir로 사용됨 (paths.py `get_base_dir()`)
 
 ## 핵심 설계 결정
 
-- 화자 분리 실패 시 단일 화자 모드로 자동 폴백
-- 병합(merger)은 단어 단위 midpoint 방식으로 화자 귀속 (구간 단위가 아님)
-- Pipeline은 취소(cancellation) 지원, stage 콜백으로 UI 진행률 업데이트
-- 커스텀 예외 클래스들은 src/utils/exceptions.py에 정의
+- 화자 분리 실패 시 단일 화자 모드로 자동 폴백 (pipeline.py:124)
+- HF 토큰이 없어도 diarization만 건너뛰고 STT는 정상 실행
+- 병합(merger)은 단어 단위 midpoint 방식으로 화자 귀속 — 구간 단위가 아니라 단어 하나하나의 중간 시점을 화자 세그먼트에 매칭
+- Pipeline은 취소(cancellation) 지원, `stage_callback(stage, progress, message)`으로 UI 진행률 업데이트
+- 커스텀 예외 계층: `YouTubeSTTError` → `DownloadError`, `PreprocessError`, `TranscribeError`, `DiarizeError`, `MergeError`, `ModelLoadError`, `FFmpegNotFoundError`, `DependencySetupError`
+- 의존성 관리(src/utils/dependency.py)에서 ffmpeg는 Gyan/BtbN 두 소스에서 폴백 다운로드
 
 ## 외부 요구사항
 
-- **HuggingFace 토큰**: 화자 분리(pyannote.audio) 사용 시 필수
-- **ffmpeg**: resources/ffmpeg/에 번들 또는 시스템 PATH에 설치
+- **HuggingFace 토큰**: 화자 분리(pyannote.audio) 사용 시 필요. `pyannote/speaker-diarization-3.1`, `pyannote/segmentation-3.0` 모델에 사용 동의(Accept) 필수
+- **ffmpeg**: `resources/ffmpeg/`에 번들, `~/.youtube_stt/ffmpeg/`에 자동 다운로드, 또는 시스템 PATH
 - **PyTorch + CUDA**: GPU 가속 시 필요 (없으면 CPU 자동 전환)
+- **Python 3.9+**
