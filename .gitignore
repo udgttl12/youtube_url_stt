@@ -22,6 +22,7 @@ env/
 # OS
 Thumbs.db
 .DS_Store
+nul
 
 # Project specific
 resources/ffmpeg/*.exe
