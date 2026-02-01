@@ -4,6 +4,7 @@ import customtkinter as ctk
 from typing import Optional
 
 from src.core.pipeline import PipelineStage
+from src.gui import fonts
 
 
 # 각 단계별 전체 진행률 범위
@@ -34,7 +35,7 @@ class ProgressFrame(ctk.CTkFrame):
         self.stage_label = ctk.CTkLabel(
             self,
             text="대기 중",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonts.body_bold_font(),
         )
         self.stage_label.grid(row=0, column=0, padx=10, pady=(10, 2), sticky="w")
 
@@ -42,7 +43,7 @@ class ProgressFrame(ctk.CTkFrame):
         self.status_label = ctk.CTkLabel(
             self,
             text="",
-            font=ctk.CTkFont(size=12),
+            font=fonts.small_font(),
             text_color="gray60",
         )
         self.status_label.grid(row=0, column=0, padx=10, pady=(10, 2), sticky="e")
@@ -56,7 +57,7 @@ class ProgressFrame(ctk.CTkFrame):
         self.percent_label = ctk.CTkLabel(
             self,
             text="0%",
-            font=ctk.CTkFont(size=12),
+            font=fonts.small_font(),
         )
         self.percent_label.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="e")
 
@@ -81,7 +82,7 @@ class ProgressFrame(ctk.CTkFrame):
             lbl = ctk.CTkLabel(
                 self.stages_frame,
                 text=f"  {name}  ",
-                font=ctk.CTkFont(size=11),
+                font=fonts.badge_font(),
                 corner_radius=6,
                 fg_color="gray25",
                 text_color="gray60",

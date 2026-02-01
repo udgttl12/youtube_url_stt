@@ -39,3 +39,8 @@ class ModelLoadError(YouTubeSTTError):
 class FFmpegNotFoundError(YouTubeSTTError):
     """FFmpeg 바이너리를 찾을 수 없음."""
     pass
+
+
+class DependencySetupError(YouTubeSTTError):
+    """의존성 설치 실패."""
+    pass

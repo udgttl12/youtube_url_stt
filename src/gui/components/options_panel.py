@@ -4,6 +4,7 @@ import customtkinter as ctk
 from typing import Optional
 
 from src.utils.config import AppConfig
+from src.gui import fonts
 
 
 class OptionsPanelFrame(ctk.CTkFrame):
@@ -21,7 +22,7 @@ class OptionsPanelFrame(ctk.CTkFrame):
         title = ctk.CTkLabel(
             self,
             text="옵션 설정",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonts.body_bold_font(),
         )
         title.grid(row=0, column=0, columnspan=4, padx=10, pady=(10, 5), sticky="w")
 

@@ -7,6 +7,7 @@ from typing import Optional
 
 from src.core.merger import MergedResult
 from src.output.formatter import get_formatter
+from src.gui import fonts
 
 
 class ResultPreviewFrame(ctk.CTkFrame):
@@ -30,7 +31,7 @@ class ResultPreviewFrame(ctk.CTkFrame):
         title = ctk.CTkLabel(
             header_frame,
             text="결과 미리보기",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonts.body_bold_font(),
         )
         title.grid(row=0, column=0, sticky="w")
 
@@ -66,7 +67,7 @@ class ResultPreviewFrame(ctk.CTkFrame):
         # 미리보기 텍스트 영역
         self.preview_text = ctk.CTkTextbox(
             self,
-            font=ctk.CTkFont(family="Consolas", size=12),
+            font=fonts.mono_font(),
             state="disabled",
             wrap="word",
         )

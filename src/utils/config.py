@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -21,6 +22,7 @@ class AppConfig:
     high_accuracy: bool = False     # 고정밀 모드
     output_dir: str = ""            # 빈 문자열이면 기본 경로 사용
     last_output_dir: str = ""
+    setup_completed: bool = False
 
     def save(self):
         """설정을 파일에 저장."""
@@ -55,3 +57,25 @@ class AppConfig:
     def has_hf_token(self) -> bool:
         """HuggingFace 토큰이 설정되어 있는지 확인."""
         return bool(self.hf_token and self.hf_token.strip())
+
+    def resolve_hf_token(self, cli_token: str = "") -> str:
+        """HuggingFace 토큰을 우선순위에 따라 반환.
+
+        우선순위:
+        1. CLI 인자로 전달된 토큰
+        2. HF_TOKEN 환경변수
+        3. HUGGING_FACE_HUB_TOKEN 환경변수
+        4. 저장된 설정의 토큰
+        """
+        if cli_token and cli_token.strip():
+            return cli_token.strip()
+
+        env_token = os.environ.get("HF_TOKEN", "").strip()
+        if env_token:
+            return env_token
+
+        hub_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", "").strip()
+        if hub_token:
+            return hub_token
+
+        return self.hf_token.strip() if self.hf_token else ""

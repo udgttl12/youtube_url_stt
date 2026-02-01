@@ -10,12 +10,15 @@ from src.core.pipeline import Pipeline, PipelineConfig, PipelineStage
 from src.core.merger import MergedResult
 from src.utils.config import AppConfig
 from src.utils.device import DeviceManager, DeviceConfig
+from src.utils.dependency import is_ffmpeg_available
 from src.utils.logger import setup_logger
 from src.gui.components.url_input import URLInputFrame
 from src.gui.components.options_panel import OptionsPanelFrame
 from src.gui.components.progress_bar import ProgressFrame
 from src.gui.components.log_viewer import LogViewerFrame
 from src.gui.components.result_preview import ResultPreviewFrame
+from src.gui.setup_wizard import SetupWizard
+from src.gui import fonts
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +42,7 @@ class HFTokenDialog(ctk.CTkToplevel):
                 "https://huggingface.co/settings/tokens 에서 발급받을 수 있습니다.\n"
                 "(화자 분리를 사용하지 않으려면 비워두세요)"
             ),
-            font=ctk.CTkFont(size=12),
+            font=fonts.small_font(),
             justify="left",
             wraplength=460,
         )
@@ -120,17 +123,28 @@ class App(ctk.CTk):
         title_label = ctk.CTkLabel(
             header_frame,
             text="YouTube 화자 분리 + STT",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=fonts.title_font(),
         )
         title_label.grid(row=0, column=0, sticky="w")
+
+        self.setup_btn = ctk.CTkButton(
+            header_frame,
+            text="설정",
+            width=60,
+            height=28,
+            font=fonts.small_font(),
+            fg_color="gray40",
+            command=self._on_open_setup,
+        )
+        self.setup_btn.grid(row=0, column=1, padx=(10, 10), sticky="e")
 
         self.device_label = ctk.CTkLabel(
             header_frame,
             text="디바이스 감지 중...",
-            font=ctk.CTkFont(size=11),
+            font=fonts.small_font(),
             text_color="gray60",
         )
-        self.device_label.grid(row=0, column=1, sticky="e")
+        self.device_label.grid(row=0, column=2, sticky="e")
 
         # URL 입력
         self.url_input = URLInputFrame(self)
@@ -148,7 +162,7 @@ class App(ctk.CTk):
         self.run_btn = ctk.CTkButton(
             btn_frame,
             text="실행",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            font=fonts.button_large_font(),
             height=42,
             command=self._on_run,
         )
@@ -157,7 +171,7 @@ class App(ctk.CTk):
         self.cancel_btn = ctk.CTkButton(
             btn_frame,
             text="취소",
-            font=ctk.CTkFont(size=14),
+            font=fonts.subheading_font(),
             height=42,
             width=100,
             fg_color="red",
@@ -206,6 +220,10 @@ class App(ctk.CTk):
         self.device_label.configure(text=info.replace("\n", " | "))
         logger.info(f"디바이스: {info}")
 
+    def _on_open_setup(self):
+        """설정 다이얼로그 열기."""
+        SetupWizard(self, config=self._config)
+
     def _on_run(self):
         """실행 버튼 클릭."""
         url = self.url_input.get_url()
@@ -213,8 +231,13 @@ class App(ctk.CTk):
             self._show_error("YouTube URL을 입력해주세요.")
             return
 
+        # ffmpeg 체크
+        if not is_ffmpeg_available():
+            self._show_ffmpeg_required()
+            return
+
         # HF 토큰 확인 (화자 분리 활성화 시)
-        if self.options_panel.is_diarization_enabled() and not self._config.has_hf_token():
+        if self.options_panel.is_diarization_enabled() and not self._config.resolve_hf_token():
             self._ask_hf_token(url)
             return
 
@@ -247,7 +270,7 @@ class App(ctk.CTk):
             output_format=self.options_panel.get_output_format(),
             enable_diarization=self.options_panel.is_diarization_enabled(),
             use_vad=self.options_panel.is_vad_enabled(),
-            hf_token=self._config.hf_token,
+            hf_token=self._config.resolve_hf_token(),
         )
 
         self._pipeline = Pipeline(
@@ -320,7 +343,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(
             dialog,
             text=message,
-            font=ctk.CTkFont(size=13),
+            font=fonts.body_font(),
             wraplength=360,
         ).pack(pady=30)
 
@@ -328,5 +351,43 @@ class App(ctk.CTk):
             dialog, text="확인", width=100,
             command=dialog.destroy,
         ).pack()
+
+        dialog.grab_set()
+
+    def _show_ffmpeg_required(self):
+        """ffmpeg 미설치 안내 다이얼로그."""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("ffmpeg 필요")
+        dialog.geometry("420x170")
+        dialog.resizable(False, False)
+
+        ctk.CTkLabel(
+            dialog,
+            text=(
+                "ffmpeg가 설치되지 않았습니다.\n"
+                "오디오 처리를 위해 ffmpeg가 필요합니다.\n"
+                "설정에서 다운로드하시겠습니까?"
+            ),
+            font=fonts.body_font(),
+            wraplength=380,
+        ).pack(pady=(25, 15))
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=5)
+
+        def open_setup():
+            dialog.destroy()
+            self._on_open_setup()
+
+        ctk.CTkButton(
+            btn_frame, text="설정 열기", width=100,
+            command=open_setup,
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            btn_frame, text="취소", width=100,
+            fg_color="gray40",
+            command=dialog.destroy,
+        ).pack(side="left", padx=5)
 
         dialog.grab_set()

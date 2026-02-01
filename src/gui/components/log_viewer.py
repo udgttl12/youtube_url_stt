@@ -3,6 +3,8 @@
 import customtkinter as ctk
 from typing import Optional
 
+from src.gui import fonts
+
 
 class LogViewerFrame(ctk.CTkFrame):
     """실시간 로그 출력 프레임."""
@@ -26,7 +28,7 @@ class LogViewerFrame(ctk.CTkFrame):
         title = ctk.CTkLabel(
             header_frame,
             text="로그",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=fonts.body_bold_font(),
         )
         title.grid(row=0, column=0, sticky="w")
 
@@ -42,7 +44,7 @@ class LogViewerFrame(ctk.CTkFrame):
         # 로그 텍스트 영역
         self.log_text = ctk.CTkTextbox(
             self,
-            font=ctk.CTkFont(family="Consolas", size=11),
+            font=fonts.mono_font(),
             state="disabled",
             wrap="word",
         )

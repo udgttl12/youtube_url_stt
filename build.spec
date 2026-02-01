@@ -9,15 +9,24 @@ block_cipher = None
 
 project_root = os.path.dirname(os.path.abspath(SPEC))
 
+# ffmpeg 바이너리가 있을 때만 번들
+ffmpeg_dir = os.path.join(project_root, 'resources', 'ffmpeg')
+datas_list = []
+if os.path.isdir(ffmpeg_dir) and any(
+    f.endswith('.exe') for f in os.listdir(ffmpeg_dir)
+):
+    for exe_file in os.listdir(ffmpeg_dir):
+        if exe_file.endswith('.exe'):
+            datas_list.append(
+                (os.path.join(ffmpeg_dir, exe_file),
+                 os.path.join('resources', 'ffmpeg'))
+            )
+
 a = Analysis(
     [os.path.join(project_root, 'main.py')],
     pathex=[project_root],
     binaries=[],
-    datas=[
-        # ffmpeg 바이너리
-        (os.path.join(project_root, 'resources', 'ffmpeg', '*.exe'),
-         os.path.join('resources', 'ffmpeg')),
-    ],
+    datas=datas_list,
     hiddenimports=[
         'customtkinter',
         'faster_whisper',
@@ -28,6 +37,9 @@ a = Analysis(
         'numpy',
         'yt_dlp',
         'pydub',
+        'huggingface_hub',
+        'ctranslate2',
+        'av',
     ],
     hookspath=[],
     hooksconfig={},
@@ -72,6 +84,6 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
+    upx_exclude=['python*.dll', 'vcruntime*.dll', 'ucrtbase.dll'],
     name='YouTubeSTT',
 )

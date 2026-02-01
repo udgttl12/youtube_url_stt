@@ -41,16 +41,29 @@ def get_output_dir() -> Path:
     return output_dir
 
 
+def get_ffmpeg_dir() -> Path:
+    """사용자 다운로드 ffmpeg 디렉토리 반환 (~/.youtube_stt/ffmpeg/)."""
+    ffmpeg_dir = get_app_data_dir() / "ffmpeg"
+    ffmpeg_dir.mkdir(parents=True, exist_ok=True)
+    return ffmpeg_dir
+
+
 def get_ffmpeg_path() -> str:
     """ffmpeg 실행 파일 경로 반환.
 
-    1. resources/ffmpeg/ 내장 바이너리
-    2. 시스템 PATH의 ffmpeg
+    1. resources/ffmpeg/ 내장 바이너리 (PyInstaller 번들)
+    2. ~/.youtube_stt/ffmpeg/ 사용자 다운로드
+    3. 시스템 PATH의 ffmpeg
     """
     base = get_base_dir()
     bundled = base / "resources" / "ffmpeg" / "ffmpeg.exe"
     if bundled.exists():
         return str(bundled)
+
+    # 사용자 다운로드 경로
+    user_ffmpeg = get_app_data_dir() / "ffmpeg" / "ffmpeg.exe"
+    if user_ffmpeg.exists():
+        return str(user_ffmpeg)
 
     # 시스템 PATH에서 찾기
     import shutil
@@ -62,11 +75,21 @@ def get_ffmpeg_path() -> str:
 
 
 def get_ffprobe_path() -> str:
-    """ffprobe 실행 파일 경로 반환."""
+    """ffprobe 실행 파일 경로 반환.
+
+    1. resources/ffmpeg/ 내장 바이너리 (PyInstaller 번들)
+    2. ~/.youtube_stt/ffmpeg/ 사용자 다운로드
+    3. 시스템 PATH의 ffprobe
+    """
     base = get_base_dir()
     bundled = base / "resources" / "ffmpeg" / "ffprobe.exe"
     if bundled.exists():
         return str(bundled)
+
+    # 사용자 다운로드 경로
+    user_ffprobe = get_app_data_dir() / "ffmpeg" / "ffprobe.exe"
+    if user_ffprobe.exists():
+        return str(user_ffprobe)
 
     import shutil
     system_ffprobe = shutil.which("ffprobe")

@@ -3,6 +3,7 @@
 사용법:
     GUI 모드: python main.py
     CLI 모드: python main.py --cli --url <URL> [옵션]
+    셋업:    python main.py --setup [--hf-token TOKEN]
 """
 
 import argparse
@@ -39,7 +40,7 @@ def run_cli(args):
 
     # 설정 로드
     config = AppConfig.load()
-    hf_token = args.hf_token or config.hf_token
+    hf_token = config.resolve_hf_token(cli_token=args.hf_token or "")
 
     # 파이프라인 실행
     pipeline_config = PipelineConfig(
@@ -75,6 +76,35 @@ def run_cli(args):
         print("\n" + formatted)
 
     logger.info("완료!")
+
+
+def run_setup_cli(args):
+    """CLI 셋업 모드 — 의존성 사전 다운로드."""
+    from src.utils.logger import setup_logger
+    from src.utils.config import AppConfig
+    from src.utils.dependency import run_setup
+
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    setup_logger(level=log_level)
+    logger = logging.getLogger("youtube_stt")
+
+    logger.info("=" * 60)
+    logger.info("의존성 셋업 시작")
+    logger.info("=" * 60)
+
+    config = AppConfig.load()
+    hf_token = config.resolve_hf_token(cli_token=args.hf_token or "")
+
+    def progress_callback(ratio, message):
+        logger.info(f"  [{ratio * 100:.0f}%] {message}")
+
+    results = run_setup(hf_token=hf_token, progress_callback=progress_callback)
+
+    logger.info("=" * 60)
+    logger.info("셋업 결과:")
+    for key, status in results.items():
+        logger.info(f"  {key}: {status}")
+    logger.info("=" * 60)
 
 
 def run_gui():
@@ -134,10 +164,16 @@ def main():
         "--verbose", "-v", action="store_true",
         help="상세 로그 출력",
     )
+    parser.add_argument(
+        "--setup", action="store_true",
+        help="의존성(ffmpeg, 모델) 사전 다운로드 실행",
+    )
 
     args = parser.parse_args()
 
-    if args.cli:
+    if args.setup:
+        run_setup_cli(args)
+    elif args.cli:
         if not args.url:
             parser.error("CLI 모드에서는 --url이 필수입니다")
         run_cli(args)

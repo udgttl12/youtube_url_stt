@@ -3,6 +3,8 @@
 import customtkinter as ctk
 from typing import Callable, Optional
 
+from src.gui import fonts
+
 
 class URLInputFrame(ctk.CTkFrame):
     """YouTube URL 입력 프레임."""
@@ -24,7 +26,7 @@ class URLInputFrame(ctk.CTkFrame):
         label = ctk.CTkLabel(
             self,
             text="YouTube URL:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=fonts.subheading_font(),
         )
         label.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="w")
 
@@ -32,7 +34,7 @@ class URLInputFrame(ctk.CTkFrame):
         self.url_entry = ctk.CTkEntry(
             self,
             placeholder_text="https://www.youtube.com/watch?v=...",
-            font=ctk.CTkFont(size=13),
+            font=fonts.entry_font(),
             height=38,
         )
         self.url_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")

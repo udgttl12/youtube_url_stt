@@ -39,6 +39,7 @@ models/
 
 # PyInstaller
 *.spec.bak
+*.exe
 
 # Environment
 .env
