@@ -22,6 +22,16 @@ if os.path.isdir(ffmpeg_dir) and any(
                  os.path.join('resources', 'ffmpeg'))
             )
 
+# pyannote 로컬 모델 번들 (하위 디렉토리 포함)
+pyannote_dir = os.path.join(project_root, 'resources', 'pyannote')
+if os.path.isdir(pyannote_dir):
+    for root, dirs, files in os.walk(pyannote_dir):
+        rel_root = os.path.relpath(root, project_root)
+        for f in files:
+            datas_list.append(
+                (os.path.join(root, f), rel_root)
+            )
+
 a = Analysis(
     [os.path.join(project_root, 'main.py')],
     pathex=[project_root],

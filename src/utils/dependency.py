@@ -14,7 +14,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError
 
 from src.utils.exceptions import DependencySetupError
-from src.utils.paths import get_app_data_dir, get_ffmpeg_path, get_ffprobe_path
+from src.utils.paths import get_app_data_dir, get_ffmpeg_path, get_ffprobe_path, get_pyannote_config_path
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +276,16 @@ def get_whisper_model_size(model_name: str = "large-v3") -> int:
 
 def get_diarize_model_size() -> int:
     """pyannote 모델 캐시 용량 (bytes). 미설치 시 0."""
+    # 로컬 번들 모델 용량
+    if _is_local_pyannote_available():
+        from src.utils.paths import get_pyannote_dir
+        pyannote_dir = get_pyannote_dir()
+        total = 0
+        for f in pyannote_dir.iterdir():
+            if f.is_file():
+                total += f.stat().st_size
+        return total
+
     try:
         from huggingface_hub import scan_cache_dir
         cache = scan_cache_dir()
@@ -317,8 +327,18 @@ def is_whisper_model_cached(model_name: str = "large-v3") -> bool:
         return False
 
 
+def _is_local_pyannote_available() -> bool:
+    """로컬 번들 pyannote 모델이 사용 가능한지 확인."""
+    config = get_pyannote_config_path()
+    return config is not None and config.exists()
+
+
 def is_diarize_model_cached() -> bool:
     """pyannote 화자 분리 모델이 캐시되어 있는지 확인."""
+    # 로컬 번들 모델 우선 체크
+    if _is_local_pyannote_available():
+        return True
+
     try:
         from huggingface_hub import scan_cache_dir
         cache_info = scan_cache_dir()
@@ -371,13 +391,13 @@ def download_diarize_model(
     Returns:
         성공 여부
     """
-    if not hf_token:
-        progress_callback(0.0, "HuggingFace 토큰이 필요합니다.")
-        return False
-
     if is_diarize_model_cached():
         progress_callback(1.0, "화자 분리 모델이 이미 캐시되어 있습니다.")
         return True
+
+    if not hf_token:
+        progress_callback(0.0, "HuggingFace 토큰이 필요합니다.")
+        return False
 
     try:
         progress_callback(0.1, "화자 분리 모델 다운로드 중...")

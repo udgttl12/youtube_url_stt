@@ -1,11 +1,13 @@
 """화자 분리(Speaker Diarization) 모듈 - pyannote.audio 기반."""
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional
 
 from src.utils.exceptions import DiarizeError, ModelLoadError
+from src.utils.paths import get_pyannote_config_path
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,11 @@ class SpeakerDiarizer:
         self._pipeline = None
 
     def load_model(self):
-        """pyannote 화자 분리 파이프라인 로드."""
+        """pyannote 화자 분리 파이프라인 로드.
+
+        1차: 로컬 번들 모델 (resources/pyannote/) 시도
+        2차: HuggingFace Hub 폴백
+        """
         try:
             from pyannote.audio import Pipeline
             import torch
@@ -48,14 +54,27 @@ class SpeakerDiarizer:
             logger.info("화자 분리 모델 로드 중...")
             self._report_progress(0.0, "화자 분리 모델 로드 중...")
 
-            self._pipeline = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-3.1",
-                token=self._hf_token if self._hf_token else None,
-            )
+            # 1차: 로컬 번들 모델
+            local_config = get_pyannote_config_path()
+            if local_config and local_config.exists():
+                logger.info(f"로컬 번들 pyannote 모델 사용: {local_config}")
+                # config.yaml 내 상대경로 해석을 위해 CWD를 모델 디렉토리로 변경
+                cwd = Path.cwd()
+                os.chdir(local_config.parent)
+                try:
+                    self._pipeline = Pipeline.from_pretrained(local_config)
+                finally:
+                    os.chdir(cwd)
+            else:
+                # 2차: HuggingFace Hub
+                logger.info("HuggingFace Hub에서 pyannote 모델 로드")
+                self._pipeline = Pipeline.from_pretrained(
+                    "pyannote/speaker-diarization-3.1",
+                    token=self._hf_token if self._hf_token else None,
+                )
 
             # 디바이스 설정
             if self._device == "cuda" and torch.cuda.is_available():
-                import torch
                 self._pipeline.to(torch.device("cuda"))
                 logger.info("화자 분리 모델: GPU 사용")
             else:
@@ -87,6 +106,9 @@ class SpeakerDiarizer:
             self.load_model()
 
         try:
+            import torch
+            import torchaudio
+
             logger.info(f"화자 분리 시작: {audio_path}")
             self._report_progress(0.0, "화자 분리 처리 중...")
 
@@ -95,7 +117,22 @@ class SpeakerDiarizer:
                 diarize_params["num_speakers"] = num_speakers
                 logger.info(f"화자 수 지정: {num_speakers}")
 
-            diarization = self._pipeline(str(audio_path), **diarize_params)
+            # torchaudio로 오디오를 인메모리 로드하여 전달
+            # (torchcodec/AudioDecoder가 없어도 동작)
+            waveform, sample_rate = torchaudio.load(str(audio_path))
+            audio_input = {
+                "waveform": waveform,
+                "sample_rate": sample_rate,
+                "uri": audio_path.stem,
+            }
+
+            result = self._pipeline(audio_input, **diarize_params)
+
+            # pyannote 4.x는 DiarizeOutput, 3.x는 Annotation 반환
+            if hasattr(result, "speaker_diarization"):
+                diarization = result.speaker_diarization
+            else:
+                diarization = result
 
             segments = []
             speakers_set = set()
