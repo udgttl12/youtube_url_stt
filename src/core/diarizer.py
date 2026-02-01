@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from src.utils.exceptions import DiarizeError, ModelLoadError
+from src.utils.exceptions import CancelledError, DiarizeError, ModelLoadError
 from src.utils.paths import get_pyannote_config_path
 
 logger = logging.getLogger(__name__)
@@ -35,10 +35,12 @@ class SpeakerDiarizer:
         hf_token: str = "",
         device: str = "cpu",
         progress_callback: Optional[Callable[[float, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
     ):
         self._hf_token = hf_token
         self._device = device
         self._progress_callback = progress_callback
+        self._cancel_check = cancel_check
         self._pipeline = None
 
     def load_model(self):
@@ -126,6 +128,10 @@ class SpeakerDiarizer:
                 "uri": audio_path.stem,
             }
 
+            hook = self._create_hook()
+            if hook is not None:
+                diarize_params["hook"] = hook
+
             result = self._pipeline(audio_input, **diarize_params)
 
             # pyannote 4.x는 DiarizeOutput, 3.x는 Annotation 반환
@@ -163,8 +169,61 @@ class SpeakerDiarizer:
                 num_speakers=num_detected,
             )
 
+        except CancelledError:
+            raise
         except Exception as e:
             raise DiarizeError(f"화자 분리 실패: {e}")
+
+    def _create_hook(self):
+        """pyannote hook 콜백을 생성하여 내부 단계별 진행률을 보고.
+
+        pyannote Pipeline의 hook 시그니처:
+            hook(step_name, step_artefact, file=file, completed=N, total=M)
+
+        단계별 진행률 범위:
+            segmentation:          0.05 ~ 0.50
+            speaker_counting:      0.55
+            embeddings:            0.55 ~ 0.90
+            discrete_diarization:  0.95
+        """
+        if not self._progress_callback and not self._cancel_check:
+            return None
+
+        stage_ranges = {
+            "segmentation": (0.05, 0.50),
+            "embeddings": (0.55, 0.90),
+        }
+        stage_messages = {
+            "segmentation": "세그멘테이션 처리 중",
+            "speaker_counting": "화자 수 추정 완료",
+            "embeddings": "임베딩 추출 처리 중",
+            "discrete_diarization": "클러스터링 완료",
+        }
+        reported_stages = set()
+
+        def hook(step_name, step_artefact, file=None, completed=None, total=None):
+            if self._cancel_check and self._cancel_check():
+                raise CancelledError()
+
+            if not self._progress_callback:
+                return
+
+            msg = stage_messages.get(step_name, step_name)
+
+            if step_name in stage_ranges and completed is not None and total is not None and total > 0:
+                start, end = stage_ranges[step_name]
+                batch_ratio = completed / total
+                progress = start + (end - start) * batch_ratio
+                pct = int(batch_ratio * 100)
+                self._report_progress(progress, f"{msg}... {pct}%")
+            elif step_name not in reported_stages:
+                reported_stages.add(step_name)
+                if step_name == "speaker_counting":
+                    self._report_progress(0.55, msg)
+                elif step_name == "discrete_diarization":
+                    self._report_progress(0.95, msg)
+
+        return hook
 
     def _report_progress(self, ratio: float, text: str):
         if self._progress_callback:

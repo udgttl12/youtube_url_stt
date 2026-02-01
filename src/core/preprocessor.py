@@ -7,7 +7,7 @@ from typing import Callable, Optional
 import numpy as np
 import soundfile as sf
 
-from src.utils.exceptions import PreprocessError
+from src.utils.exceptions import CancelledError, PreprocessError
 from src.utils.paths import get_temp_dir
 
 logger = logging.getLogger(__name__)
@@ -21,8 +21,13 @@ CLIP_THRESHOLD = 0.99
 class AudioPreprocessor:
     """오디오를 STT에 최적화된 형태로 전처리."""
 
-    def __init__(self, progress_callback: Optional[Callable[[float, str], None]] = None):
+    def __init__(
+        self,
+        progress_callback: Optional[Callable[[float, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ):
         self._progress_callback = progress_callback
+        self._cancel_check = cancel_check
 
     def process(self, input_path: Path, output_path: Optional[Path] = None) -> Path:
         """오디오 파일을 전처리.
@@ -46,22 +51,27 @@ class AudioPreprocessor:
             self._report_progress(0.0, "오디오 로딩 중...")
             data, sr = sf.read(str(input_path), dtype="float32")
             logger.info(f"원본 오디오: {sr}Hz, shape={data.shape}")
+            self._check_cancelled()
 
             # 1. 모노 변환
             self._report_progress(0.2, "모노 변환 중...")
             data = self._to_mono(data)
+            self._check_cancelled()
 
             # 2. 리샘플링
             self._report_progress(0.4, "리샘플링 중...")
             data = self._resample(data, sr, TARGET_SAMPLE_RATE)
+            self._check_cancelled()
 
             # 3. 음량 정규화
             self._report_progress(0.6, "음량 정규화 중...")
             data = self._normalize_volume(data)
+            self._check_cancelled()
 
             # 4. 클리핑 방지
             self._report_progress(0.8, "클리핑 방지 처리 중...")
             data = self._prevent_clipping(data)
+            self._check_cancelled()
 
             # 5. 저장
             self._report_progress(0.9, "저장 중...")
@@ -73,6 +83,8 @@ class AudioPreprocessor:
 
             return output_path
 
+        except CancelledError:
+            raise
         except PreprocessError:
             raise
         except Exception as e:
@@ -123,6 +135,10 @@ class AudioPreprocessor:
             data = (data * scale).astype(np.float32)
             logger.info(f"클리핑 방지: 피크 {peak:.4f} → {CLIP_THRESHOLD}")
         return data
+
+    def _check_cancelled(self):
+        if self._cancel_check and self._cancel_check():
+            raise CancelledError()
 
     def _report_progress(self, ratio: float, text: str):
         if self._progress_callback:

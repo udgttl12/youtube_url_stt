@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import yt_dlp
 
-from src.utils.exceptions import DownloadError
+from src.utils.exceptions import CancelledError, DownloadError
 from src.utils.paths import get_temp_dir, get_ffmpeg_path
 
 logger = logging.getLogger(__name__)
@@ -32,12 +32,18 @@ class YouTubeDownloader:
     MAX_RETRIES = 3
     RETRY_DELAY = 2  # 초
 
-    def __init__(self, progress_callback: Optional[Callable[[float, str], None]] = None):
+    def __init__(
+        self,
+        progress_callback: Optional[Callable[[float, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ):
         """
         Args:
             progress_callback: (progress_ratio, status_text) 콜백
+            cancel_check: 취소 여부를 반환하는 콜백
         """
         self._progress_callback = progress_callback
+        self._cancel_check = cancel_check
 
     def download(self, url: str, output_dir: Optional[Path] = None) -> Path:
         """YouTube URL에서 오디오를 WAV로 다운로드.
@@ -95,7 +101,7 @@ class YouTubeDownloader:
 
                 raise DownloadError("WAV 파일이 생성되지 않음")
 
-            except DownloadError:
+            except (DownloadError, CancelledError):
                 raise
             except Exception as e:
                 last_error = e
@@ -125,6 +131,8 @@ class YouTubeDownloader:
 
     def _ydl_progress_hook(self, d: dict):
         """yt-dlp 진행률 콜백."""
+        if self._cancel_check and self._cancel_check():
+            raise CancelledError()
         if d["status"] == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
             downloaded = d.get("downloaded_bytes", 0)

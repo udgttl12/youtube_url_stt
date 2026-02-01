@@ -218,6 +218,18 @@ class App(ctk.CTk):
         self._device_config = config
         info = DeviceManager.get_device_info_text(config)
         self.device_label.configure(text=info.replace("\n", " | "))
+
+        if config.device == "cuda":
+            self.device_label.configure(
+                text_color="#4CAF50",
+                font=fonts.small_bold_font(),
+            )
+        else:
+            self.device_label.configure(
+                text_color="#FF9800",
+                font=fonts.small_bold_font(),
+            )
+
         logger.info(f"디바이스: {info}")
 
     def _on_open_setup(self):

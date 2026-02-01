@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from src.utils.device import DeviceConfig
-from src.utils.exceptions import TranscribeError, ModelLoadError
+from src.utils.exceptions import CancelledError, TranscribeError, ModelLoadError
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,11 @@ class Transcriber:
         self,
         device_config: DeviceConfig,
         progress_callback: Optional[Callable[[float, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
     ):
         self._device_config = device_config
         self._progress_callback = progress_callback
+        self._cancel_check = cancel_check
         self._model = None
 
     def load_model(self):
@@ -117,6 +119,9 @@ class Transcriber:
 
             segments = []
             for seg in segments_gen:
+                if self._cancel_check and self._cancel_check():
+                    raise CancelledError()
+
                 words = []
                 if seg.words:
                     words = [
@@ -152,6 +157,8 @@ class Transcriber:
                 duration=duration,
             )
 
+        except CancelledError:
+            raise
         except Exception as e:
             raise TranscribeError(f"STT 처리 실패: {e}")
 
@@ -194,6 +201,9 @@ class Transcriber:
 
             segments = []
             for seg in segments_gen:
+                if self._cancel_check and self._cancel_check():
+                    raise CancelledError()
+
                 words = []
                 if seg.words:
                     words = [
@@ -229,6 +239,8 @@ class Transcriber:
                 duration=duration,
             )
 
+        except CancelledError:
+            raise
         except Exception as e:
             raise TranscribeError(f"VAD+STT 처리 실패: {e}")
 

@@ -44,3 +44,9 @@ class FFmpegNotFoundError(YouTubeSTTError):
 class DependencySetupError(YouTubeSTTError):
     """의존성 설치 실패."""
     pass
+
+
+class CancelledError(YouTubeSTTError):
+    """사용자 취소."""
+    def __init__(self, message: str = "사용자에 의해 취소됨"):
+        super().__init__(message)

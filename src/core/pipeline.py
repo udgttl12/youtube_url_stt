@@ -14,7 +14,7 @@ from src.core.diarizer import SpeakerDiarizer, DiarizeResult
 from src.core.merger import ResultMerger, MergedResult
 from src.utils.device import DeviceManager, DeviceConfig
 from src.utils.config import AppConfig
-from src.utils.exceptions import YouTubeSTTError, DiarizeError
+from src.utils.exceptions import YouTubeSTTError, CancelledError, DiarizeError
 from src.utils.paths import cleanup_temp, get_pyannote_config_path
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,8 @@ class Pipeline:
             # 2. 다운로드
             self._notify(PipelineStage.DOWNLOAD, 0.0, "다운로드 시작...")
             downloader = YouTubeDownloader(
-                progress_callback=lambda p, t: self._notify(PipelineStage.DOWNLOAD, p, t)
+                progress_callback=lambda p, t: self._notify(PipelineStage.DOWNLOAD, p, t),
+                cancel_check=lambda: self._cancelled,
             )
             raw_audio = downloader.download(self._config.url)
             self._check_cancelled()
@@ -102,7 +103,8 @@ class Pipeline:
             # 3. 전처리
             self._notify(PipelineStage.PREPROCESS, 0.0, "오디오 전처리 시작...")
             preprocessor = AudioPreprocessor(
-                progress_callback=lambda p, t: self._notify(PipelineStage.PREPROCESS, p, t)
+                progress_callback=lambda p, t: self._notify(PipelineStage.PREPROCESS, p, t),
+                cancel_check=lambda: self._cancelled,
             )
             processed_audio = preprocessor.process(raw_audio)
             self._check_cancelled()
@@ -121,6 +123,7 @@ class Pipeline:
                         hf_token=self._config.hf_token,
                         device=self._device_config.device,
                         progress_callback=lambda p, t: self._notify(PipelineStage.DIARIZE, p, t),
+                        cancel_check=lambda: self._cancelled,
                     )
                     diarize_result = diarizer.diarize(
                         processed_audio,
@@ -148,6 +151,7 @@ class Pipeline:
             transcriber = Transcriber(
                 device_config=self._device_config,
                 progress_callback=lambda p, t: self._notify(PipelineStage.TRANSCRIBE, p, t),
+                cancel_check=lambda: self._cancelled,
             )
 
             language = self._config.language if self._config.language != "auto" else None
@@ -187,7 +191,7 @@ class Pipeline:
 
     def _check_cancelled(self):
         if self._cancelled:
-            raise YouTubeSTTError("사용자에 의해 취소됨")
+            raise CancelledError()
 
     def _notify(self, stage: PipelineStage, progress: float, message: str):
         logger.debug(f"[{stage.value}] {progress:.0%} - {message}")

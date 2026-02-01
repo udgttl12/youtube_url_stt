@@ -10,6 +10,15 @@ from src.gui import fonts
 class OptionsPanelFrame(ctk.CTkFrame):
     """처리 옵션 설정 패널."""
 
+    LANG_DISPLAY = {
+        "auto": "자동 감지",
+        "ko": "한국어",
+        "en": "영어",
+        "ja": "일본어",
+        "zh": "중국어",
+    }
+    LANG_CODE = {v: k for k, v in LANG_DISPLAY.items()}
+
     def __init__(self, master, config: Optional[AppConfig] = None, **kwargs):
         super().__init__(master, **kwargs)
         self._config = config or AppConfig()
@@ -30,11 +39,12 @@ class OptionsPanelFrame(ctk.CTkFrame):
         lang_label = ctk.CTkLabel(self, text="언어:")
         lang_label.grid(row=1, column=0, padx=(10, 5), pady=5, sticky="w")
 
-        self.language_var = ctk.StringVar(value=self._config.language)
+        lang_display = self.LANG_DISPLAY.get(self._config.language, "자동 감지")
+        self.language_var = ctk.StringVar(value=lang_display)
         self.language_menu = ctk.CTkOptionMenu(
             self,
             variable=self.language_var,
-            values=["auto", "ko", "en", "ja", "zh"],
+            values=list(self.LANG_DISPLAY.values()),
             width=120,
         )
         self.language_menu.grid(row=1, column=1, padx=5, pady=5, sticky="w")
@@ -86,7 +96,8 @@ class OptionsPanelFrame(ctk.CTkFrame):
         self.vad_check.grid(row=2, column=3, padx=(5, 10), pady=5, sticky="w")
 
     def get_language(self) -> str:
-        return self.language_var.get()
+        display = self.language_var.get()
+        return self.LANG_CODE.get(display, "auto")
 
     def get_num_speakers(self) -> Optional[int]:
         val = self.speakers_var.get()

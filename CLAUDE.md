@@ -18,14 +18,18 @@ python main.py --cli --url <YOUTUBE_URL> [--language ko] [--speakers 2] [--forma
 # 의존성 사전 다운로드 (ffmpeg, Whisper, diarization 모델)
 python main.py --setup [--hf-token TOKEN]
 
-# 의존성 설치
-pip install -r requirements.txt
+# venv 생성 (Python 3.12 필요 — 3.14는 onnxruntime 미지원)
+py -3.12 -m venv venv
 
-# GPU 사용 시 CUDA PyTorch 별도 설치 필요
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+# 의존성 설치 (venv 활성화 후)
+venv\Scripts\pip install -r requirements.txt
+
+# GPU 사용 시 CUDA PyTorch 별도 설치 필요 (CPU 버전 대체)
+venv\Scripts\pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu126
 
 # PyInstaller 빌드 (exe 패키징) → dist/YouTubeSTT/
-pyinstaller build.spec
+venv\Scripts\pip install pyinstaller
+venv\Scripts\python -m PyInstaller build.spec -y
 ```
 
 ## 아키텍처
@@ -86,9 +90,14 @@ customtkinter 기반 다크 모드. `src/gui/app.py`가 메인 윈도우, `src/g
 - 화자 분리 실패 시 단일 화자 모드로 자동 폴백 (pipeline.py:124)
 - HF 토큰이 없어도 diarization만 건너뛰고 STT는 정상 실행
 - 병합(merger)은 단어 단위 midpoint 방식으로 화자 귀속 — 구간 단위가 아니라 단어 하나하나의 중간 시점을 화자 세그먼트에 매칭
-- Pipeline은 취소(cancellation) 지원, `stage_callback(stage, progress, message)`으로 UI 진행률 업데이트
-- 커스텀 예외 계층: `YouTubeSTTError` → `DownloadError`, `PreprocessError`, `TranscribeError`, `DiarizeError`, `MergeError`, `ModelLoadError`, `FFmpegNotFoundError`, `DependencySetupError`
+- Pipeline은 취소(cancellation) 지원, `stage_callback(stage, progress, message)`으로 UI 진행률 업데이트. 각 모듈(downloader, preprocessor, diarizer, transcriber)에 `cancel_check` 콜백을 전달하여 단계 내부 블로킹 호출 중에도 취소 가능. `CancelledError`는 각 모듈의 `except Exception` catch-all보다 먼저 `except CancelledError: raise`로 투명 전파되어 모듈 실패가 아닌 취소로 올바르게 처리됨
+- 커스텀 예외 계층: `YouTubeSTTError` → `DownloadError`, `PreprocessError`, `TranscribeError`, `DiarizeError`, `MergeError`, `ModelLoadError`, `FFmpegNotFoundError`, `DependencySetupError`, `CancelledError`
 - 의존성 관리(src/utils/dependency.py)에서 ffmpeg는 Gyan/BtbN 두 소스에서 폴백 다운로드
+
+## 향후 기능 (TODO)
+
+- **URL 큐(Queue) 일괄 처리**: 여러 YouTube 링크를 목록으로 등록하고 순차적으로 자동 처리. 작업 진행 중에도 큐에 새 URL 추가 가능해야 함
+- **시스템 트레이 지원**: 창 닫기 시 트레이로 최소화, 종료 확인 다이얼로그 제공
 
 ## 외부 요구사항
 

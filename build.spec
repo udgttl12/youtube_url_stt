@@ -4,6 +4,7 @@
 import os
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 block_cipher = None
 
@@ -32,6 +33,19 @@ if os.path.isdir(pyannote_dir):
                 (os.path.join(root, f), rel_root)
             )
 
+# pyannote 패키지 데이터 파일 (telemetry/config.yaml 등)
+venv_site = os.path.join(project_root, 'venv', 'Lib', 'site-packages')
+pyannote_telemetry_yaml = os.path.join(
+    venv_site, 'pyannote', 'audio', 'telemetry', 'config.yaml'
+)
+if os.path.isfile(pyannote_telemetry_yaml):
+    datas_list.append(
+        (pyannote_telemetry_yaml, os.path.join('pyannote', 'audio', 'telemetry'))
+    )
+
+# faster_whisper VAD 모델 (silero_vad_v6.onnx) 번들
+datas_list += collect_data_files('faster_whisper')
+
 a = Analysis(
     [os.path.join(project_root, 'main.py')],
     pathex=[project_root],
@@ -40,7 +54,6 @@ a = Analysis(
     hiddenimports=[
         'customtkinter',
         'faster_whisper',
-        'pyannote.audio',
         'torch',
         'torchaudio',
         'soundfile',
@@ -50,7 +63,7 @@ a = Analysis(
         'huggingface_hub',
         'ctranslate2',
         'av',
-    ],
+    ] + collect_submodules('pyannote.audio'),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -6,7 +6,20 @@
       "Bash(hooks\" || echo \"No matching files in C:Users윤동규.claude\"\")",
       "Skill(claude-notifications-go:notifications-init)",
       "Bash(happy:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(./YouTubeSTT.exe:*)",
+      "Bash(pip show:*)",
+      "Bash(findstr:*)",
+      "Bash(\"C:\\\\Users\\\\lKira\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe\" -c \"import pyannote.audio.telemetry; import os; d = os.path.dirname\\(pyannote.audio.telemetry.__file__\\); print\\(d\\); print\\(os.listdir\\(d\\)\\)\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\lKira\\\\AppData\\\\Local\\\\Python\")",
+      "Bash(cmd /c \"dir /s /b C:\\\\Users\\\\lKira\\\\AppData\\\\Local 2>nul | findstr /i telemetry | findstr /i pyannote\")",
+      "Bash(cmd /c \"where /r C:\\\\Users\\\\lKira config.yaml 2>nul\")",
+      "Bash(cmd /c \"where /r C:\\\\Users\\\\lKira\\\\AppData\\\\Local\\\\Python config.yaml 2>nul\")",
+      "Bash(cmd /c \"pip show pyannote.audio 2>nul\")",
+      "Bash(cmd /c \"python -m pip show pyannote.audio 2>nul\")",
+      "Bash(cmd /c \"python -c \"\"import site; print\\(site.getsitepackages\\(\\)\\)\"\" 2>nul\")",
+      "Bash(\"G:\\\\Project\\\\youtube_url_stt\\\\venv\\\\Scripts\\\\python.exe\" -m PyInstaller build.spec --noconfirm)",
+      "Bash(taskkill:*)"
     ]
   }
 }
