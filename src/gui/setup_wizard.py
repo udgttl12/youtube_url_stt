@@ -79,12 +79,14 @@ class SetupWizard(ctk.CTkToplevel):
 
         self._ffmpeg_btn = ctk.CTkButton(
             self._ffmpeg_frame, text="다운로드", width=90,
+            font=fonts.button_font(),
             command=self._on_download_ffmpeg,
         )
         self._ffmpeg_btn.grid(row=0, column=2, padx=(5, 0))
 
         self._ffmpeg_del_btn = ctk.CTkButton(
             self._ffmpeg_frame, text="삭제", width=60,
+            font=fonts.button_font(),
             fg_color="gray40", hover_color="red",
             command=self._on_delete_ffmpeg,
         )
@@ -122,12 +124,14 @@ class SetupWizard(ctk.CTkToplevel):
 
         self._whisper_btn = ctk.CTkButton(
             self._whisper_frame, text="다운로드", width=90,
+            font=fonts.button_font(),
             command=self._on_download_whisper,
         )
         self._whisper_btn.grid(row=0, column=2, padx=(5, 0))
 
         self._whisper_del_btn = ctk.CTkButton(
             self._whisper_frame, text="삭제", width=60,
+            font=fonts.button_font(),
             fg_color="gray40", hover_color="red",
             command=self._on_delete_whisper,
         )
@@ -164,12 +168,14 @@ class SetupWizard(ctk.CTkToplevel):
 
         self._diarize_btn = ctk.CTkButton(
             self._diarize_frame, text="다운로드", width=90,
+            font=fonts.button_font(),
             command=self._on_download_diarize,
         )
         self._diarize_btn.grid(row=0, column=2, padx=(5, 0))
 
         self._diarize_del_btn = ctk.CTkButton(
             self._diarize_frame, text="삭제", width=60,
+            font=fonts.button_font(),
             fg_color="gray40", hover_color="red",
             command=self._on_delete_diarize,
         )
@@ -213,6 +219,7 @@ class SetupWizard(ctk.CTkToplevel):
             hf_frame,
             placeholder_text="hf_...",
             show="*",
+            font=fonts.entry_font(),
         )
         self._hf_token_entry.grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 5), sticky="ew")
 
@@ -222,6 +229,7 @@ class SetupWizard(ctk.CTkToplevel):
 
         self._hf_save_btn = ctk.CTkButton(
             hf_frame, text="저장", width=70,
+            font=fonts.button_font(),
             command=self._on_save_hf_token,
         )
         self._hf_save_btn.grid(row=2, column=2, padx=(5, 10), pady=(0, 5))
@@ -246,6 +254,7 @@ class SetupWizard(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame, text="닫기", width=80,
+            font=fonts.button_font(),
             fg_color="gray40",
             command=self._on_close,
         ).pack(side="right")
@@ -486,12 +495,14 @@ class SetupWizard(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame, text="삭제", width=80,
+            font=fonts.button_font(),
             fg_color="red", hover_color="darkred",
             command=do_delete,
         ).pack(side="left", padx=5)
 
         ctk.CTkButton(
             btn_frame, text="취소", width=80,
+            font=fonts.button_font(),
             fg_color="gray40",
             command=confirm.destroy,
         ).pack(side="left", padx=5)
@@ -576,12 +587,14 @@ class SetupWizard(ctk.CTkToplevel):
 
             ctk.CTkButton(
                 btn_frame, text="닫기", width=80,
+                font=fonts.button_font(),
                 fg_color="red", hover_color="darkred",
                 command=lambda: (confirm.destroy(), self.destroy()),
             ).pack(side="left", padx=5)
 
             ctk.CTkButton(
                 btn_frame, text="취소", width=80,
+                font=fonts.button_font(),
                 fg_color="gray40",
                 command=confirm.destroy,
             ).pack(side="left", padx=5)

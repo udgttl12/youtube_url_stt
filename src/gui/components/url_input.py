@@ -40,25 +40,6 @@ class URLInputFrame(ctk.CTkFrame):
         self.url_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
         self.url_entry.bind("<Return>", lambda e: self._submit())
 
-        # 붙여넣기 버튼
-        paste_btn = ctk.CTkButton(
-            self,
-            text="붙여넣기",
-            width=80,
-            height=38,
-            command=self._paste,
-        )
-        paste_btn.grid(row=0, column=2, padx=(5, 10), pady=10)
-
-    def _paste(self):
-        """클립보드에서 URL 붙여넣기."""
-        try:
-            clipboard = self.clipboard_get()
-            self.url_entry.delete(0, "end")
-            self.url_entry.insert(0, clipboard.strip())
-        except Exception:
-            pass
-
     def _submit(self):
         url = self.get_url()
         if url and self._on_submit:

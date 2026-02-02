@@ -53,6 +53,7 @@ class HFTokenDialog(ctk.CTkToplevel):
             placeholder_text="hf_...",
             width=460,
             show="*",
+            font=fonts.entry_font(),
         )
         self.token_entry.grid(row=1, column=0, padx=20, pady=10)
 
@@ -61,11 +62,13 @@ class HFTokenDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(
             btn_frame, text="확인", width=100,
+            font=fonts.button_font(),
             command=self._on_ok,
         ).pack(side="left", padx=5)
 
         ctk.CTkButton(
             btn_frame, text="건너뛰기", width=100,
+            font=fonts.button_font(),
             fg_color="gray40",
             command=self._on_skip,
         ).pack(side="left", padx=5)
@@ -88,8 +91,8 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("YouTube 화자 분리 + STT")
-        self.geometry("950x750")
-        self.minsize(800, 600)
+        self.geometry("1400x750")
+        self.minsize(1100, 600)
 
         # 다크 모드
         ctk.set_appearance_mode("dark")
@@ -112,8 +115,8 @@ class App(ctk.CTk):
 
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(4, weight=1)  # 로그/미리보기 영역 확장
-        self.grid_rowconfigure(5, weight=2)
+        self.grid_columnconfigure(1, weight=3)
+        self.grid_rowconfigure(5, weight=1)  # 로그 뷰어 영역 확장
 
         # 제목 + 디바이스 정보
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -185,26 +188,13 @@ class App(ctk.CTk):
         self.progress = ProgressFrame(self)
         self.progress.grid(row=4, column=0, padx=15, pady=5, sticky="ew")
 
-        # 하단 탭: 로그 / 미리보기
-        self.tab_view = ctk.CTkTabview(self)
-        self.tab_view.grid(row=5, column=0, padx=15, pady=(5, 15), sticky="nsew")
+        # 로그 뷰어 (좌측 하단, 탭 없이 직접 배치)
+        self.log_viewer = LogViewerFrame(self)
+        self.log_viewer.grid(row=5, column=0, padx=15, pady=(5, 15), sticky="nsew")
 
-        self.tab_view.add("로그")
-        self.tab_view.add("결과 미리보기")
-
-        # 로그 탭
-        log_tab = self.tab_view.tab("로그")
-        log_tab.grid_columnconfigure(0, weight=1)
-        log_tab.grid_rowconfigure(0, weight=1)
-        self.log_viewer = LogViewerFrame(log_tab)
-        self.log_viewer.grid(row=0, column=0, sticky="nsew")
-
-        # 결과 미리보기 탭
-        preview_tab = self.tab_view.tab("결과 미리보기")
-        preview_tab.grid_columnconfigure(0, weight=1)
-        preview_tab.grid_rowconfigure(0, weight=1)
-        self.result_preview = ResultPreviewFrame(preview_tab)
-        self.result_preview.grid(row=0, column=0, sticky="nsew")
+        # 결과 미리보기 (우측, 전체 높이)
+        self.result_preview = ResultPreviewFrame(self)
+        self.result_preview.grid(row=0, column=1, rowspan=6, padx=(0, 15), pady=(10, 15), sticky="nsew")
 
     def _detect_device(self):
         """백그라운드에서 디바이스 감지."""
@@ -230,6 +220,7 @@ class App(ctk.CTk):
                 font=fonts.small_bold_font(),
             )
 
+        self.options_panel.update_device_info(config)
         logger.info(f"디바이스: {info}")
 
     def _on_open_setup(self):
@@ -282,7 +273,10 @@ class App(ctk.CTk):
             output_format=self.options_panel.get_output_format(),
             enable_diarization=self.options_panel.is_diarization_enabled(),
             use_vad=self.options_panel.is_vad_enabled(),
+            low_power=self.options_panel.is_low_power_enabled(),
             hf_token=self._config.resolve_hf_token(),
+            whisper_model=self.options_panel.get_whisper_model(),
+            beam_size=self.options_panel.get_beam_size(),
         )
 
         self._pipeline = Pipeline(
@@ -318,7 +312,6 @@ class App(ctk.CTk):
         # 결과 미리보기 표시
         fmt = self.options_panel.get_output_format()
         self.result_preview.set_result(result, fmt)
-        self.tab_view.set("결과 미리보기")
 
         logger.info(f"처리 완료: {len(result.segments)}개 세그먼트, {result.num_speakers}명 화자")
 
@@ -361,6 +354,7 @@ class App(ctk.CTk):
 
         ctk.CTkButton(
             dialog, text="확인", width=100,
+            font=fonts.button_font(),
             command=dialog.destroy,
         ).pack()
 
@@ -393,11 +387,13 @@ class App(ctk.CTk):
 
         ctk.CTkButton(
             btn_frame, text="설정 열기", width=100,
+            font=fonts.button_font(),
             command=open_setup,
         ).pack(side="left", padx=5)
 
         ctk.CTkButton(
             btn_frame, text="취소", width=100,
+            font=fonts.button_font(),
             fg_color="gray40",
             command=dialog.destroy,
         ).pack(side="left", padx=5)

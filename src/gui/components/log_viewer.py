@@ -37,6 +37,7 @@ class LogViewerFrame(ctk.CTkFrame):
             text="지우기",
             width=60,
             height=28,
+            font=fonts.small_font(),
             command=self.clear,
         )
         clear_btn.grid(row=0, column=1, sticky="e")

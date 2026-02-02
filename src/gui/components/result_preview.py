@@ -35,9 +35,40 @@ class ResultPreviewFrame(ctk.CTkFrame):
         )
         title.grid(row=0, column=0, sticky="w")
 
+        # 폰트 크기 조절
+        size_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        size_frame.grid(row=0, column=1, sticky="e", padx=(10, 0))
+
+        size_label = ctk.CTkLabel(
+            size_frame,
+            text="크기",
+            font=fonts.small_font(),
+        )
+        size_label.pack(side="left", padx=(0, 5))
+
+        self._font_size_var = ctk.IntVar(value=12)
+        self._font_size_slider = ctk.CTkSlider(
+            size_frame,
+            from_=10,
+            to=30,
+            number_of_steps=20,
+            width=120,
+            variable=self._font_size_var,
+            command=self._on_font_size_change,
+        )
+        self._font_size_slider.pack(side="left")
+
+        self._font_size_label = ctk.CTkLabel(
+            size_frame,
+            text="12",
+            font=fonts.small_font(),
+            width=30,
+        )
+        self._font_size_label.pack(side="left", padx=(5, 0))
+
         # 포맷 전환 버튼들
         btn_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        btn_frame.grid(row=0, column=1, sticky="e")
+        btn_frame.grid(row=0, column=2, sticky="e")
 
         self._format_buttons = {}
         for fmt in ["txt", "srt", "json"]:
@@ -46,6 +77,7 @@ class ResultPreviewFrame(ctk.CTkFrame):
                 text=fmt.upper(),
                 width=50,
                 height=28,
+                font=fonts.small_font(),
                 command=lambda f=fmt: self._switch_format(f),
             )
             btn.pack(side="left", padx=2)
@@ -57,6 +89,7 @@ class ResultPreviewFrame(ctk.CTkFrame):
             text="저장",
             width=70,
             height=28,
+            font=fonts.small_font(),
             fg_color="green",
             hover_color="darkgreen",
             command=self._save_file,
@@ -67,11 +100,17 @@ class ResultPreviewFrame(ctk.CTkFrame):
         # 미리보기 텍스트 영역
         self.preview_text = ctk.CTkTextbox(
             self,
-            font=fonts.mono_font(),
+            font=fonts.small_font(),
             state="disabled",
             wrap="word",
         )
         self.preview_text.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+
+    def _on_font_size_change(self, value):
+        """폰트 크기 슬라이더 변경."""
+        size = int(round(value))
+        self._font_size_label.configure(text=str(size))
+        self.preview_text.configure(font=ctk.CTkFont(family=fonts.FONT_FAMILY, size=size))
 
     def set_result(self, result: MergedResult, format_type: str = "txt"):
         """결과를 설정하고 미리보기 표시."""

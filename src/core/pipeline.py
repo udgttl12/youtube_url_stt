@@ -44,7 +44,10 @@ class PipelineConfig:
     enable_diarization: bool = True
     use_vad: bool = True
     high_accuracy: bool = False
+    low_power: bool = False
     hf_token: str = ""
+    whisper_model: str = ""   # 빈 문자열이면 DeviceConfig 자동 추천 사용
+    beam_size: int = 0        # 0이면 DeviceConfig 추천값 사용
 
 
 class Pipeline:
@@ -117,14 +120,14 @@ class Pipeline:
                 self._config.hf_token or has_local_model
             )
             if can_diarize:
+                diarizer = SpeakerDiarizer(
+                    hf_token=self._config.hf_token,
+                    device=self._device_config.device,
+                    progress_callback=lambda p, t: self._notify(PipelineStage.DIARIZE, p, t),
+                    cancel_check=lambda: self._cancelled,
+                )
                 try:
                     self._notify(PipelineStage.DIARIZE, 0.0, "화자 분리 시작...")
-                    diarizer = SpeakerDiarizer(
-                        hf_token=self._config.hf_token,
-                        device=self._device_config.device,
-                        progress_callback=lambda p, t: self._notify(PipelineStage.DIARIZE, p, t),
-                        cancel_check=lambda: self._cancelled,
-                    )
                     diarize_result = diarizer.diarize(
                         processed_audio,
                         num_speakers=self._config.num_speakers,
@@ -135,6 +138,8 @@ class Pipeline:
                         PipelineStage.DIARIZE, 1.0,
                         "화자 분리 실패 - 단일 화자로 처리"
                     )
+                finally:
+                    diarizer.unload_model()
             elif self._config.enable_diarization:
                 logger.info("HuggingFace 토큰 없고 로컬 모델도 없음, 화자 분리 건너뜀")
                 self._notify(
@@ -146,22 +151,41 @@ class Pipeline:
 
             self._check_cancelled()
 
+            # Whisper 모델 오버라이드 적용
+            if self._config.whisper_model:
+                self._device_config.whisper_model = self._config.whisper_model
+                logger.info(f"Whisper 모델 오버라이드: {self._config.whisper_model}")
+
+            # beam_size 결정
+            effective_beam_size = (
+                self._config.beam_size
+                if self._config.beam_size > 0
+                else self._device_config.recommended_beam_size
+            )
+
             # 5. STT
             self._notify(PipelineStage.TRANSCRIBE, 0.0, "STT 시작...")
             transcriber = Transcriber(
                 device_config=self._device_config,
                 progress_callback=lambda p, t: self._notify(PipelineStage.TRANSCRIBE, p, t),
                 cancel_check=lambda: self._cancelled,
+                low_power=self._config.low_power,
+                beam_size=effective_beam_size,
             )
 
             language = self._config.language if self._config.language != "auto" else None
+            need_word_timestamps = bool(diarize_result and diarize_result.segments)
             if self._config.use_vad:
                 transcript_result = transcriber.transcribe_with_vad(
-                    processed_audio, language=language
+                    processed_audio,
+                    language=language,
+                    word_timestamps=need_word_timestamps,
                 )
             else:
                 transcript_result = transcriber.transcribe_full(
-                    processed_audio, language=language
+                    processed_audio,
+                    language=language,
+                    word_timestamps=need_word_timestamps,
                 )
             self._check_cancelled()
 

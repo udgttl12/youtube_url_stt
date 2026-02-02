@@ -174,6 +174,29 @@ class SpeakerDiarizer:
         except Exception as e:
             raise DiarizeError(f"화자 분리 실패: {e}")
 
+    def unload_model(self):
+        """GPU 메모리에서 pyannote 모델을 해제."""
+        try:
+            import gc
+            if self._pipeline is not None:
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        self._pipeline.to(torch.device("cpu"))
+                except Exception:
+                    pass
+                self._pipeline = None
+            gc.collect()
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            logger.info("화자 분리 모델 언로드 완료")
+        except Exception as e:
+            logger.warning(f"화자 분리 모델 언로드 중 오류 (무시): {e}")
+
     def _create_hook(self):
         """pyannote hook 콜백을 생성하여 내부 단계별 진행률을 보고.
 

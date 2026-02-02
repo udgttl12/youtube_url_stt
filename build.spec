@@ -34,14 +34,21 @@ if os.path.isdir(pyannote_dir):
             )
 
 # pyannote 패키지 데이터 파일 (telemetry/config.yaml 등)
-venv_site = os.path.join(project_root, 'venv', 'Lib', 'site-packages')
-pyannote_telemetry_yaml = os.path.join(
-    venv_site, 'pyannote', 'audio', 'telemetry', 'config.yaml'
-)
-if os.path.isfile(pyannote_telemetry_yaml):
-    datas_list.append(
-        (pyannote_telemetry_yaml, os.path.join('pyannote', 'audio', 'telemetry'))
-    )
+# venv/conda 등 환경에 관계없이 동적으로 패키지 경로를 탐색
+try:
+    import importlib.util
+    _spec = importlib.util.find_spec('pyannote.audio')
+    if _spec and _spec.origin:
+        _pyannote_audio_dir = os.path.dirname(_spec.origin)
+        pyannote_telemetry_yaml = os.path.join(
+            _pyannote_audio_dir, 'telemetry', 'config.yaml'
+        )
+        if os.path.isfile(pyannote_telemetry_yaml):
+            datas_list.append(
+                (pyannote_telemetry_yaml, os.path.join('pyannote', 'audio', 'telemetry'))
+            )
+except Exception:
+    pass
 
 # faster_whisper VAD 모델 (silero_vad_v6.onnx) 번들
 datas_list += collect_data_files('faster_whisper')
@@ -92,7 +99,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # GUI 모드
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -34,8 +34,14 @@ def run_cli(args):
     logger.info("YouTube 화자 분리 + STT (CLI 모드)")
     logger.info("=" * 60)
 
+    # 모델 오버라이드
+    model_override = "" if args.model == "auto" else args.model
+
     # 디바이스 감지
-    device_config = DeviceManager.detect(force_cpu=args.cpu)
+    device_config = DeviceManager.detect(
+        force_cpu=args.cpu,
+        whisper_model_override=model_override,
+    )
     logger.info(DeviceManager.get_device_info_text(device_config))
 
     # 설정 로드
@@ -50,7 +56,10 @@ def run_cli(args):
         output_format=args.format,
         enable_diarization=not args.no_diarize,
         use_vad=not args.no_vad,
+        low_power=args.low_power,
         hf_token=hf_token,
+        whisper_model=model_override,
+        beam_size=args.beam_size,
     )
 
     def on_stage(stage: PipelineStage, progress: float, message: str):
@@ -159,6 +168,22 @@ def main():
     parser.add_argument(
         "--cpu", action="store_true",
         help="CPU 모드 강제 사용",
+    )
+    parser.add_argument(
+        "--low-power", action="store_true",
+        help="저사양 모드 (스레드/빔 축소로 자원 사용량 감소)",
+    )
+    parser.add_argument(
+        "--model", type=str, default="auto",
+        choices=[
+            "auto", "tiny", "base", "small", "medium", "large-v3",
+            "distil-large-v3", "distil-medium.en", "distil-small.en",
+        ],
+        help="Whisper 모델 선택 (auto=VRAM 기반 자동 추천)",
+    )
+    parser.add_argument(
+        "--beam-size", type=int, default=0,
+        help="Beam size (0=자동 추천)",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",
